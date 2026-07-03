@@ -35,21 +35,10 @@ for entry in scandir(directory_path):
 
 console.print(f"Loaded directory with {len(audio_files)} audio files")
 
-if not getenv("API_KEY") or not getenv("API_SECRET"):
-    console.print("LastFM API key and secret must be provided in .env")
+if not getenv("API_KEY"):
+    console.print("LastFM API key must be provided in .env")
     exit(1)
 API_KEY = str(getenv("API_KEY"))
-API_SECRET = str(getenv("API_SECRET"))
-
-def make_signature(signature):
-    return md5(
-        f"api_key{API_KEY}{signature}{API_SECRET}".encode()).hexdigest()
-
-# token_response = requests.get(LAST_FM_BASE_URL +
-#     "?method=auth.gettoken&api_key=" + API_KEY +
-#     "&format=json" + "&api_sig=" + make_signature("methodauth.getSession"))
-# token_response.raise_for_status()
-# token = token_response.json()["token"]
 
 search_query = path.split(directory_path)[1]
 
@@ -78,5 +67,5 @@ album = album_response.json()["album"]
 
 console.print(
     "Track count - " + f"({len(album["tracks"]["track"])}) LastFM" +
-    f"vs ({len(audio_files)}) Local Directory")
+    f", ({len(audio_files)}) Local Directory")
 
