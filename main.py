@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
-from hashlib import md5
 from os import getenv, path, scandir
 import requests
+import taglib
 from rich.console import Console
 from sys import argv, exit
 
@@ -27,13 +27,13 @@ if not path.isdir(directory_path):
     console.print("Provided path must be a directory")
     exit(1)
 
-audio_files = []
+track_paths = []
 for entry in scandir(directory_path):
     if (entry.is_file() and
             path.splitext(entry.path)[1] in AUDIO_FILE_EXTENSIONS):
-        audio_files.append(entry.name)
+        track_paths.append(entry.name)
 
-console.print(f"Loaded directory with {len(audio_files)} audio files")
+console.print(f"Loaded directory with {len(track_paths)} audio files")
 
 if not getenv("API_KEY"):
     console.print("LastFM API key must be provided in .env")
@@ -65,7 +65,20 @@ album_response = requests.get(
 album_response.raise_for_status()
 album = album_response.json()["album"]
 
-console.print(
-    "Track count - " + f"({len(album["tracks"]["track"])}) LastFM" +
-    f", ({len(audio_files)}) Local Directory")
+local_track_count = len(track_paths)
+lastfm_track_count = len(album["tracks"]["track"])
+if not local_track_count == lastfm_track_count:
+    console.print(
+        f"Local track count ({local_track_count}) does not match " +
+        f"LastFM track count ({lastfm_track_count})")
+    exit(1)
+
+artist_name = album["artist"]
+album_name = album["name"]
+
+for track_path in track_paths:
+    full_track_path = path.join(directory_path, track_path)
+    track_file = taglib.File(full_track_path)
+    console.print(track_file.tags)
+    track_file.close()
 
