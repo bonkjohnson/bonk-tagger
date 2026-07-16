@@ -85,7 +85,6 @@ def get_updated_track_tags(directory_path, track_paths, album):
     tracks = album["tracks"]["track"]
 
     for index, track_path in enumerate(track_paths):
-        if index > 0: continue
         full_track_path = path.join(directory_path, track_path)
         track_file = FLAC(full_track_path)
         tags = track_file.tags
@@ -95,21 +94,10 @@ def get_updated_track_tags(directory_path, track_paths, album):
         matching_track = get_matching_track_by_title(
             existing_track_title, tracks)
 
-        updated_tags = build_tags_for_track(
-            album, matching_track)
+        expected_file_name = f"{matching_track["@attr"]["rank"]:02}. {matching_track["name"]}"
 
-        # TODO: find a way to make this more bearable when there are a lot of
-        # existing tags
-        # update_table = Table()
-        # update_table.add_column("Original Tags")
-        # update_table.add_column("New Tags")
-        # update_table.add_row(
-        #    JSON(json.dumps(tags)), JSON(json.dumps(updated_tags)))
-        # console.print(update_table)
-
-        # TODO: figure out why this isn't saving the file
-        # track_file.tags = updated_tags
-        # track_file.save()
+        if not path.splitext(track_path)[0] == expected_file_name:
+            console.print(f"{track_path} does not match {expected_file_name}")
 
 def get_matching_track_by_title(existing_track_title, album_tracks):
     match_scores = {}
@@ -118,20 +106,15 @@ def get_matching_track_by_title(existing_track_title, album_tracks):
             None, existing_track_title, track["name"]).ratio()
         match_scores[index] = score
 
-    return album_tracks[sorted(match_scores)[0]]
+    max_score = -1
+    max_score_index = -1
+    for index in match_scores:
+        current_score = match_scores[index]
+        if current_score > max_score:
+            max_score = current_score
+            max_score_index = index
 
-def build_tags_for_track(album, track):
-    # TODO: eventually build this out for tag types other than FLAC
-    tags = VCFLACDict()
-    tags["ALBUMARTIST"] = [ album["artist"] ]
-    tags["ARTIST"] = [ track["artist"]["name"] ]
-    tags["TITLE"] = [ track["name"] ]
-    tags["TRACK_NUMBER"] = [ str(track["@attr"]["rank"]) ]
-    tags["ALBUMARTISTSORT"] = [ album["artist"] ]
-    tags["ARTISTSORT"] = [ album["artist"] ]
-    tags["TRACKTOTAL"] = [ str(len(album["tracks"]["track"])) ]
-    tags["TAGGEDBY"] = [ "bonk-tagger" ]
-    return tags
+    return album_tracks[max_score_index]
 
 def main():
     directory_path = get_directory_from_argv()
