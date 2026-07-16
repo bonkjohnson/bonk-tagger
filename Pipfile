@@ -7,7 +7,7 @@ name = "pypi"
 python-dotenv = "*"
 requests = "*"
 rich = "*"
-pytaglib = "*"
+mutagen = "*"
 
 [dev-packages]
 
