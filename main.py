@@ -1,11 +1,10 @@
 from difflib import SequenceMatcher
 from dotenv import load_dotenv
-import json
-from mutagen.flac import FLAC, VCFLACDict
-from os import getenv, path, scandir
+from mutagen.flac import FLAC
+from os import getenv, path, rename, scandir
 import requests
 from rich.console import Console
-from rich.json import JSON
+from rich.live import Live
 from rich.table import Table
 from sys import argv, exit
 
@@ -81,8 +80,9 @@ def get_album_info(directory_path, track_paths):
 
     return album
 
-def get_updated_track_tags(directory_path, track_paths, album):
+def get_proper_track_names(directory_path, track_paths, album):
     tracks = album["tracks"]["track"]
+    updated_track_names = {}
 
     for index, track_path in enumerate(track_paths):
         full_track_path = path.join(directory_path, track_path)
@@ -90,14 +90,16 @@ def get_updated_track_tags(directory_path, track_paths, album):
         tags = track_file.tags
 
         existing_track_title = tags["title"][0] if len(tags["title"]) > 0 else ""
+        extension = path.splitext(track_path)[1]
 
         matching_track = get_matching_track_by_title(
             existing_track_title, tracks)
 
-        expected_file_name = f"{matching_track["@attr"]["rank"]:02}. {matching_track["name"]}"
+        expected_file_name = f"{matching_track["@attr"]["rank"]:02}. {matching_track["name"]}{extension}"
 
-        if not path.splitext(track_path)[0] == expected_file_name:
-            console.print(f"{track_path} does not match {expected_file_name}")
+        updated_track_names[track_path] = expected_file_name
+
+    return updated_track_names
 
 def get_matching_track_by_title(existing_track_title, album_tracks):
     match_scores = {}
@@ -116,12 +118,38 @@ def get_matching_track_by_title(existing_track_title, album_tracks):
 
     return album_tracks[max_score_index]
 
+def display_confirmation_table(proper_track_names):
+    table = Table()
+    table.add_column("Original File Name")
+    table.add_column("Updated File Name")
+    for key in proper_track_names.keys():
+        entry = proper_track_names[key]
+        table.add_row(
+            key, entry, style="green" if entry == key else "red")
+    console.print(table)
+    return console.input("Would you like to proceed with rename? [Y/n] ")
+
+def rename_files(directory_path, proper_track_names):
+    for original_track_name in proper_track_names.keys():
+        proper_track_name = proper_track_names[original_track_name]
+        original_path = path.join(directory_path, original_track_name)
+        updated_path = path.join(directory_path, proper_track_name)
+
+        if not original_path == updated_path:
+            rename(original_path, updated_path)
+
 def main():
     directory_path = get_directory_from_argv()
     track_paths = get_track_paths(directory_path)
     album = get_album_info(directory_path, track_paths)
 
-    get_updated_track_tags(directory_path, track_paths, album)
+    proper_track_names = get_proper_track_names(
+        directory_path, track_paths, album)
+
+    response = display_confirmation_table(proper_track_names)
+
+    if response == "Y":
+        rename_files(directory_path, proper_track_names)
 
 if __name__ == "__main__":
     main()
