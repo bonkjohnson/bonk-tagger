@@ -43,25 +43,36 @@ def load_api_key():
         exit(1)
     return str(getenv("API_KEY"))
 
-def get_album_info(directory_path, track_paths):
-    search_query = path.split(directory_path)[1]
-    api_key = load_api_key()
-
+def search_album(query, api_key):
     search_response = requests.get(
         LAST_FM_BASE_URL + "?method=album.search" +
-        f"&album={search_query}" + "&format=json" + f"&api_key={api_key}")
+        f"&album={query}" + "&format=json" + f"&api_key={api_key}")
     search_response.raise_for_status()
-    album_matches = search_response.json()["results"]["albummatches"]["album"]
+    return search_response.json()["results"]["albummatches"]["album"]
 
-    console.print(f"Found {len(album_matches)} total albums")
+def get_album_info(directory_path, track_paths):
+    api_key = load_api_key()
+    select_index = -1
+    search_query = path.split(directory_path)[1]
+    album_matches = {}
 
-    result_count = 5 if len(album_matches) > 5 else len(album_matches)
-    console.print(f"Top {result_count} LastFM album search results")
-    for i in range(result_count):
-        album = album_matches[i]
-        console.print(f"({i + 1}) {album["name"]} - {album["artist"]}")
+    while select_index == -1:
+        album_matches = search_album(search_query, api_key)
+        console.print(f"Found {len(album_matches)} total albums")
 
-    select_index = int(console.input("Enter your selection: ")) - 1
+        result_count = 5 if len(album_matches) > 5 else len(album_matches)
+        console.print(f"Top {result_count} LastFM album search results")
+        for i in range(result_count):
+            album = album_matches[i]
+            console.print(f"({i + 1}) {album["name"]} - {album["artist"]}")
+
+        response = console.input(
+            "Enter your selection (or a manual search term): ")
+        select_index = -1
+        try:
+            select_index = int(response) - 1
+        except ValueError:
+            search_query = response
 
     album_response = requests.get(
         LAST_FM_BASE_URL + "?method=album.getInfo" +
