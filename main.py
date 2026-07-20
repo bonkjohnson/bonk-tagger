@@ -50,6 +50,20 @@ def search_album(query, api_key):
     search_response.raise_for_status()
     return search_response.json()["results"]["albummatches"]["album"]
 
+def fetch_album_info(album_match, api_key):
+    console.print(album_match)
+    query = f"&artist={album_match["artist"]}&album={album_match["name"]}"
+    if "mbid" in album_match and len(album_match["mbid"]) > 0:
+        query = f"&mbid={album_match["mbid"]}"
+    console.print(query)
+
+    album_response = requests.get(
+        LAST_FM_BASE_URL + "?method=album.getInfo" +
+        f"{query}" + "&format=json" +
+        f"&api_key={api_key}")
+    album_response.raise_for_status()
+    return album_response.json()["album"]
+
 def get_album_info(directory_path, track_paths):
     api_key = load_api_key()
     select_index = -1
@@ -74,12 +88,7 @@ def get_album_info(directory_path, track_paths):
         except ValueError:
             search_query = response
 
-    album_response = requests.get(
-        LAST_FM_BASE_URL + "?method=album.getInfo" +
-        f"&mbid={album_matches[select_index]["mbid"]}" + "&format=json" +
-        f"&api_key={api_key}")
-    album_response.raise_for_status()
-    album = album_response.json()["album"]
+    album = fetch_album_info(album_matches[select_index], api_key)
 
     local_track_count = len(track_paths)
     lastfm_track_count = len(album["tracks"]["track"])
